@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h3>Booking Requests</h3>
+<div id="provider-chat-note" class="alert alert-info d-none" role="alert" style="display:none;"></div>
 <table class="table table-bordered shadow">
     <thead class="table-warning">
         <tr>
@@ -20,7 +21,7 @@
             <td>{{ b.date }}</td>
             <td>{{ b.time }}</td>
             <td>
-                <span class="badge bg-{{ 'success' if b.status=='Accepted' else 'danger' if b.status=='Rejected' else 'warning' }}">
+                <span class="badge bg-{{ 'success' if b.status=='Accepted' else 'primary' if b.status=='Paid' else 'danger' if b.status=='Rejected' else 'warning' }}">
                     {{ b.status }}
                 </span>
             </td>
@@ -29,9 +30,44 @@
                     <a href="{{ url_for('update_booking_status', booking_id=b.id, action='accept') }}" class="btn btn-success btn-sm">Accept</a>
                     <a href="{{ url_for('update_booking_status', booking_id=b.id, action='reject') }}" class="btn btn-danger btn-sm">Reject</a>
                 {% endif %}
+                {% if b.customer_id %}
+                    <a href="{{ url_for('chat', provider_id=b.provider_id, customer_id=b.customer_id) }}" class="btn btn-secondary btn-sm mt-2">Chat</a>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+    const providerId = {{ current_user.id }};
+    const customerIds = [
+        {% for cid in chat_customer_ids %}
+            {{ cid }},{% endfor %}
+    ];
+    const noteArea = document.getElementById('provider-chat-note');
+    const socket = io();
+
+    socket.on('connect', () => {
+        customerIds.forEach(customerId => {
+            if (customerId) {
+                const room = `chat_${Math.min(providerId, customerId)}_${Math.max(providerId, customerId)}`;
+                socket.emit('join', { room, provider_id: providerId, customer_id: customerId });
+            }
+        });
+    });
+
+    socket.on('message_notification', (data) => {
+        if (data.provider_id === providerId && data.sender_role === 'customer') {
+            noteArea.textContent = `New message from ${data.sender_name} on booking conversation.`;
+            noteArea.classList.remove('d-none');
+            noteArea.style.display = 'block';
+            setTimeout(() => {
+                noteArea.classList.add('d-none');
+                noteArea.style.display = 'none';
+            }, 7000);
+        }
+    });
+</script>
 {% endblock %}

@@ -25,20 +25,22 @@
                             <a class="nav-link" href="{{ url_for('create_service') }}">Create Service</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('provider_notifications') }}">
+                            <a class="nav-link" href="{{ url_for('provider_chats') }}">Chat Inbox</a>
+                        </li>
+                        <li class="nav-item position-relative">
+                            <a class="nav-link" href="{{ url_for('provider_notifications') }}" id="nav-notifications-link">
                                 Notifications
-                                {% if provider_pending_count > 0 %}
-                                    <span class="badge bg-danger">{{ provider_pending_count }}</span>
-                                {% endif %}
+                                <span id="nav-notif-badge" class="badge rounded-pill bg-danger d-none" style="width:24px;height:24px;line-height:24px;padding:0 0;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:0;right:-0.7rem;">0</span>
                             </a>
                         </li>
                     {% endif %}
 
                     {# ✅ CUSTOMER NAVIGATION #}
                     {% if current_user.role == "customer" %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('customer_notifications') }}">
+                        <li class="nav-item position-relative">
+                            <a class="nav-link" href="{{ url_for('customer_notifications') }}" id="nav-notifications-link">
                                 My Notifications
+                                <span id="nav-notif-badge" class="badge rounded-pill bg-danger d-none" style="width:24px;height:24px;line-height:24px;padding:0 0;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:0;right:-0.7rem;">0</span>
                             </a>
                         </li>
                     {% endif %}

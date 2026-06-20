@@ -1,17 +1,75 @@
 {% extends "base.html" %}
 {% block content %}
-<h3>Chat with {{ provider.username }}</h3>
-<div class="card p-3 mb-3" style="max-height:300px;overflow-y:auto;">
+<h3>Chat with {{ partner_name }}</h3>
+<div id="chat-notification" class="alert alert-info d-none" role="alert" style="display:none;"></div>
+<div id="chat-window" class="card p-3 mb-3" style="max-height:400px;overflow-y:auto;">
     {% for c in chats %}
     <div class="mb-2">
-        <strong>{{ "You" if c.sender_role==current_user.role else provider.username }}:</strong>
+        <strong>{{ "You" if c.sender_role==current_user.role else partner_name }}:</strong>
         <span>{{ c.message }}</span>
         <small class="text-muted">({{ c.timestamp.strftime("%H:%M") }})</small>
     </div>
     {% endfor %}
 </div>
-<form method="POST" class="d-flex">
-    <input type="text" name="message" class="form-control me-2" placeholder="Type your message..." required>
+<form id="chat-form" class="d-flex">
+    <input type="text" id="message-input" class="form-control me-2" placeholder="Type your message..." autocomplete="off" required>
     <button class="btn btn-primary">Send</button>
 </form>
+
+<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+    const providerId = {{ provider_id }};
+    const customerId = {{ customer_id }};
+    const currentUserId = {{ current_user.id }};
+    const currentUserRole = "{{ current_user.role }}";
+    const room = `chat_${Math.min(providerId, customerId)}_${Math.max(providerId, customerId)}`;
+
+    const socket = io();
+    const chatWindow = document.getElementById('chat-window');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+
+    socket.on('connect', () => {
+        socket.emit('join', { room, provider_id: providerId, customer_id: customerId });
+    });
+
+    const notificationBanner = document.getElementById('chat-notification');
+
+    socket.on('receive_message', (data) => {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'mb-2';
+        const sender = data.sender_role === currentUserRole ? 'You' : '{{ partner_name }}';
+        messageElement.innerHTML = `<strong>${sender}:</strong> <span>${data.message}</span> <small class="text-muted">(${data.timestamp})</small>`;
+        chatWindow.appendChild(messageElement);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+
+        if (data.sender_role !== currentUserRole) {
+            notificationBanner.textContent = `New message from ${data.sender_name}`;
+            notificationBanner.classList.remove('d-none');
+            notificationBanner.style.display = 'block';
+            setTimeout(() => {
+                notificationBanner.classList.add('d-none');
+                notificationBanner.style.display = 'none';
+            }, 5000);
+        }
+    });
+
+    socket.on('status', (data) => {
+        const statusElement = document.createElement('div');
+        statusElement.className = 'text-muted small mb-2';
+        statusElement.textContent = data.msg;
+        chatWindow.appendChild(statusElement);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    });
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) return;
+        socket.emit('send_message', { message, provider_id: providerId, customer_id: customerId, room });
+        messageInput.value = '';
+    });
+
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+</script>
 {% endblock %}

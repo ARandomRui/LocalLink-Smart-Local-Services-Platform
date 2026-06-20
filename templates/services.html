@@ -38,13 +38,11 @@
 
                 {% if current_user.is_authenticated and current_user.role == 'customer' %}
                     <a href="{{ url_for('book', service_id=s.id) }}" class="btn btn-primary">Book Now</a>
+                    <a href="{{ url_for('hire', service_id=s.id) }}" class="btn btn-primary ms-2">Rate Now</a>
+                    <a href="{{ url_for('chat', provider_id=s.provider_id) }}" class="btn btn-secondary ms-2">Chat</a>
                 {% else %}
                     <p class="text-muted"><small>Login as customer to book</small></p>
                 {% endif %}
-
-                {% if current_user.is_authenticated and current_user.role == 'customer' %}
-    <a href="{{ url_for('hire', service_id=s.id) }}" class="btn btn-primary">Rate Now</a>
-{% endif %}
 
             </div>
         </div>

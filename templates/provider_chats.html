@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Provider Chat Inbox</h3>
+<p>Open conversations from customers who have messaged you, even if they haven't booked yet.</p>
+<div class="table-responsive">
+    <table class="table table-bordered shadow">
+        <thead class="table-primary">
+            <tr>
+                <th>Customer</th>
+                <th>Last Message</th>
+                <th>Last Updated</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for convo in conversations %}
+            <tr>
+                <td>{{ convo.customer.username }} ({{ convo.customer.email }})</td>
+                <td>{{ convo.last_message }}</td>
+                <td>{{ convo.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <a href="{{ url_for('chat', provider_id=current_user.id, customer_id=convo.customer_id) }}" class="btn btn-secondary btn-sm">Open Chat</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">No open chat conversations yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
