@@ -404,7 +404,6 @@ def handle_join(data):
         emit('status', {'msg': 'Please log in to join the chat.'})
         return
     join_room(room)
-    # emit('status', {'msg': f'{current_user.username} joined the chat.'}, room=room)
 
 @socketio.on('join_global')
 def handle_join_global():
