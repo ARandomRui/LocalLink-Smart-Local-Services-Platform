@@ -8,11 +8,11 @@
                 <form method="POST">
                     <div class="mb-3">
                         <label>Username</label>
-                        <input type="text" name="username" class="form-control" required>
+                        <input type="text" name="username" class="form-control" value="{{ username or '' }}" required>
                     </div>
                     <div class="mb-3">
                         <label>Email</label>
-                        <input type="email" name="email" class="form-control" required>
+                        <input type="email" name="email" class="form-control" value="{{ email or '' }}" required>
                     </div>
                     <div class="mb-3">
                         <label>Password</label>
@@ -21,13 +21,13 @@
                     <div class="mb-3">
                         <label>Role</label>
                         <select name="role" class="form-control">
-                            <option value="customer">Customer</option>
-                            <option value="provider">Service Provider</option>
+                            <option value="customer" {% if role == 'customer' %}selected{% endif %}>Customer</option>
+                            <option value="provider" {% if role == 'provider' %}selected{% endif %}>Service Provider</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label>Location</label>
-                        <input type="text" name="location" class="form-control" placeholder="Enter your city or area" required>
+                        <input type="text" name="location" class="form-control" placeholder="Enter your city or area" value="{{ location or '' }}" required>
                         <small class="text-muted">You will get a personalized experience based on your location.</small>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Register</button>

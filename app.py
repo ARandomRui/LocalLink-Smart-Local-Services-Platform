@@ -1,10 +1,14 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
 from sqlalchemy.sql import func
+import pyotp
+import qrcode
+from io import BytesIO
+import base64
 
 
 # -------------------- Flask Setup --------------------
@@ -21,6 +25,8 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+
+
 # -------------------- Database Models --------------------
 
 class User(UserMixin, db.Model):
@@ -30,6 +36,8 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(150), nullable=False)
     role = db.Column(db.String(50), nullable=False, default='customer')  # customer/provider/admin
     location = db.Column(db.String(100))
+    two_factor_enabled = db.Column(db.Boolean, default=False)
+    two_factor_secret = db.Column(db.String(32))
 
 class Service(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -141,56 +149,7 @@ def inject_provider_notifications():
     return dict(provider_pending_count=pending_count)
 
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = generate_password_hash(request.form['password'], method='pbkdf2:sha256')
-        role = request.form['role']
-        location = request.form['location']  # ✅ make sure this matches the form name
-
-        new_user = User(username=username, email=email, password=password, role=role, location=location)
-        db.session.add(new_user)
-        db.session.commit()
-
-        flash('Registration successful! Please login.', 'success')
-        return redirect(url_for('login'))
-
-    return render_template('register.html')
-
-
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-
-        user = User.query.filter_by(email=email).first()
-        if not user or not check_password_hash(user.password, password):
-            flash('Invalid credentials', 'danger')
-            return redirect(url_for('login'))
-
-        login_user(user)
-        flash('Logged in successfully!', 'success')
-
-        # ✅ Redirect based on role
-        if user.role == "admin":
-            return redirect(url_for('admin'))
-        else:
-            return redirect(url_for('index'))
-
-    return render_template('login.html')
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out successfully.', 'info')
-    return redirect(url_for('index'))
+# Auth routes moved to auth.py
 
 # ----------- Service Management ------------
 
@@ -437,7 +396,157 @@ def resolve_complaint(complaint_id):
     return redirect(url_for('admin'))
 
 
+# -------------------- Auth Routes --------------------
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        role = request.form.get('role', 'customer')
+        location = request.form.get('location', '').strip()
+
+        # Added validation checks and response towards certain types of errors
+        if not username or not email or not password:
+            flash('Please fill out all required fields.', 'danger')
+            return render_template('register.html', username=username, email=email, role=role, location=location)
+
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long.', 'danger')
+            return render_template('register.html', username=username, email=email, role=role, location=location)
+
+        if role not in ['customer', 'provider']:
+            flash('Invalid role selected.', 'danger')
+            return render_template('register.html', username=username, email=email, role=role, location=location)
+
+        # Check if user gmail/username already exists
+        if User.query.filter_by(email=email).first():
+            flash('An account with this email already exists.', 'danger')
+            return render_template('register.html', username=username, email=email, role=role, location=location)
+            
+        if User.query.filter_by(username=username).first():
+            flash('This username is already taken.', 'danger')
+            return render_template('register.html', username=username, email=email, role=role, location=location)
+
+        password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+
+        new_user = User(username=username, email=email, password=password_hash, role=role, location=location)
+        db.session.add(new_user)
+        db.session.commit()
+
+        flash('Registration successful! Please login.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+
+        user = User.query.filter_by(email=email).first()
+        if not user or not check_password_hash(user.password, password):
+            flash('Invalid credentials', 'danger')
+            return redirect(url_for('login'))
+
+        if user.two_factor_enabled:
+            session['pre_2fa_user_id'] = user.id
+            return redirect(url_for('verify_2fa'))
+
+        login_user(user)
+        flash('Logged in successfully!', 'success')
+        if user.role == "admin":
+            return redirect(url_for('admin'))
+        else:
+            return redirect(url_for('index'))
+
+    return render_template('login.html')
+
+@app.route('/verify_2fa', methods=['GET', 'POST'])
+def verify_2fa():
+    if 'pre_2fa_user_id' not in session:
+        flash('Please login first.', 'danger')
+        return redirect(url_for('login'))
+        
+    user_id = session['pre_2fa_user_id']
+    user = User.query.get(user_id)
+    
+    if not user:
+        session.pop('pre_2fa_user_id', None)
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        token = request.form['token']
+        #This works with all authenticator app through an Intrustry Standard Protocol TOTP
+        totp = pyotp.TOTP(user.two_factor_secret)
+        if totp.verify(token):
+            session.pop('pre_2fa_user_id', None)
+            login_user(user)
+            flash('Logged in successfully!', 'success')
+            if user.role == "admin":
+                return redirect(url_for('admin'))
+            else:
+                return redirect(url_for('index'))
+        else:
+            flash('Invalid 2FA token. Please try again.', 'danger')
+
+    return render_template('verify_2fa.html')
+
+@app.route('/setup_2fa', methods=['GET', 'POST'])
+@login_required
+def setup_2fa():
+    if current_user.two_factor_enabled:
+        flash('2FA is already enabled.', 'info')
+        return redirect(url_for('profile'))
+
+    if 'new_2fa_secret' not in session:
+        session['new_2fa_secret'] = pyotp.random_base32()
+        
+    secret = session['new_2fa_secret']
+    
+    if request.method == 'POST':
+        token = request.form.get('token')
+        totp = pyotp.TOTP(secret)
+        if totp.verify(token):
+            current_user.two_factor_secret = secret
+            current_user.two_factor_enabled = True 
+            db.session.commit()
+            session.pop('new_2fa_secret', None)
+            flash('2FA has been successfully enabled!', 'success')
+            return redirect(url_for('profile'))
+        else:
+            flash('Invalid token. Please ensure your authenticator is synced.', 'danger')
+
+    totp = pyotp.TOTP(secret)
+    provisioning_uri = totp.provisioning_uri(name=current_user.email, issuer_name="LocalLinkPlatform")
+    img = qrcode.make(provisioning_uri)
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    qr_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    return render_template('setup_2fa.html', secret=secret, qr_code=qr_base64)
+
+@app.route('/disable_2fa', methods=['POST'])
+@login_required
+def disable_2fa():
+    current_user.two_factor_enabled = False
+    current_user.two_factor_secret = None
+    db.session.commit()
+    flash('2FA has been disabled.', 'info')
+    return redirect(url_for('profile'))
+
+@app.route('/logout')
+@login_required
+def logout():
+    session.pop('pre_2fa_user_id', None)
+    logout_user()
+    flash('Logged out successfully.', 'info')
+    return redirect(url_for('index'))
+
 # -------------------- Run & Auto Admin Creation --------------------
+
 
 if __name__ == '__main__':
     with app.app_context():

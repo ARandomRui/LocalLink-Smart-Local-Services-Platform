@@ -4,3 +4,5 @@ Flask-Login
 Flask-Mail
 Werkzeug
 stripe
+pyotp
+qrcode
