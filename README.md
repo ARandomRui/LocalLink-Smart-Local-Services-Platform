@@ -2,7 +2,7 @@
 [![GitHub repository](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/ARandomRui/LocalLink-Smart-Local-Services-Platform)
 ## 📌 Project Overview
 **Local Link** is a local service provider platform designed to connect **service providers** with **customers** seamlessly.  
-Built with **Flask, SQLAlchemy, and Flask-Login**, this project is ideal for **students, beginners, and learners** who want to understand how real-world service platforms are built. This project was also further maintained to fix several bugs and added several feature enhancement from the [original project](https://github.com/VaibhavRawat27/LocalLink-Smart-Local-Services-Platform)
+Built with **Flask, SQLAlchemy, and Flask-Login**, this project is ideal for **students, beginners, and learners** who want to understand how real-world service platforms are built. This project was also further maintained to fix several bugs and add several feature enhancement from the [original project](https://github.com/VaibhavRawat27/LocalLink-Smart-Local-Services-Platform).
 
 This platform can be considered:
 - ✅ A **mini-project** for academic purposes.
@@ -28,7 +28,6 @@ This platform can be considered:
 - **Stripe Payment Gateway**: Secure, hosted checkout sessions for processing service payments with automated database sync via callbacks.
 - **Google Maps Places API**: Smart address autocomplete and dynamic map links to ensure location standardization and reduce user error.
 - **2FA Security (TOTP)**: High-security authentication utilizing QR codes and Time-Based One-Time Passwords (via pyotp).
-- **User Roles & Admin Dashboard**: Strict Role-Based Access Control (RBAC) with cascading database deletion for automated data hygiene.
 
 ---
 
