@@ -9,4 +9,5 @@ python-dotenv
 flask-migrate
 pyotp
 qrcode
+Pillow
 

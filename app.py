@@ -24,13 +24,13 @@ import base64
 
 import stripe  # Stripe payment processing library
 
-# [Maintenance 3: Code Comment] Initialize Stripe with test key
-stripe.api_key = 'sk_test_51ThrDP3norPnKy7yGWQReMEmhQOQjXU7Wpjk2aCgn27CEy2StpnmzbS3Ua555AVe6bEtteborTlI2yNQg1g0r5jU00QVctriy0'
-
 # [Maintenance 2: Code Comment] Environment variable for google maps api key
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')  
+
+# [Maintenance 3: Code Comment] Initialize Stripe with test key
+stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 # ==================== FLASK APPLICATION SETUP ====================
 # Initialize Flask app with configuration
