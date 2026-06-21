@@ -28,7 +28,8 @@
                 <li class="nav-item position-relative">
                   <a class="nav-link" href="{{ url_for('provider_notifications') }}" id="nav-notifications-link">
                     Notifications
-                    <span id="nav-notif-badge" class="badge rounded-pill bg-danger d-none" style="width:24px;height:24px;line-height:24px;padding:0 0;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:0;right:-0.7rem;">0</span>
+                    {% set total_notifs = unread_chat_count + provider_pending_count %}
+                    <span id="nav-notif-badge" class="badge rounded-pill bg-danger {% if total_notifs == 0 %}d-none{% endif %}" style="width:24px;height:24px;line-height:24px;padding:0 0;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:0;right:-0.7rem;">{% if total_notifs > 0 %}{{ total_notifs }}{% else %}0{% endif %}</span>
                   </a>
                 </li>
               {% endif %}
@@ -38,7 +39,7 @@
                 <li class="nav-item position-relative">
                   <a class="nav-link" href="{{ url_for('customer_notifications') }}" id="nav-notifications-link">
                     My Notifications
-                    <span id="nav-notif-badge" class="badge rounded-pill bg-danger d-none" style="width:24px;height:24px;line-height:24px;padding:0 0;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:0;right:-0.7rem;">0</span>
+                    <span id="nav-notif-badge" class="badge rounded-pill bg-danger {% if unread_chat_count == 0 %}d-none{% endif %}" style="width:24px;height:24px;line-height:24px;padding:0 0;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:0;right:-0.7rem;">{% if unread_chat_count > 0 %}{{ unread_chat_count }}{% else %}0{% endif %}</span>
                   </a>
                 </li>
               {% endif %}

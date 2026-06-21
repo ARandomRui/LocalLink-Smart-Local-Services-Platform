@@ -140,6 +140,7 @@ class Chat(db.Model):
     message = db.Column(db.Text, nullable=False)  # Chat message content
     sender_role = db.Column(db.String(20))  # Sender type: 'customer' or 'provider'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # When message was sent
+    is_read = db.Column(db.Boolean, default=False)  # Unread status
     
     # ✅ Relationships
     customer = db.relationship('User', foreign_keys=[customer_id], backref=db.backref('customer_chats', cascade='all, delete-orphan'))
@@ -192,12 +193,17 @@ def profile():
 
 @app.context_processor
 def inject_provider_notifications():
-    """Make provider's pending notification count available globally in templates"""
+    """Make notification counts available globally in templates"""
     pending_count = 0
-    if current_user.is_authenticated and current_user.role == "provider":
-        # Count pending bookings for the provider
-        pending_count = Booking.query.filter_by(provider_id=current_user.id, status="Pending").count()
-    return dict(provider_pending_count=pending_count)
+    unread_chat_count = 0
+    if current_user.is_authenticated:
+        if current_user.role == "provider":
+            pending_count = Booking.query.filter_by(provider_id=current_user.id, status="Pending").count()
+            unread_chat_count = Chat.query.filter_by(provider_id=current_user.id, sender_role='customer', is_read=False).count()
+        elif current_user.role == "customer":
+            unread_chat_count = Chat.query.filter_by(customer_id=current_user.id, sender_role='provider', is_read=False).count()
+            
+    return dict(provider_pending_count=pending_count, unread_chat_count=unread_chat_count)
 
 
 
@@ -370,6 +376,20 @@ def chat(provider_id, customer_id=None):
                             message=msg, sender_role=current_user.role)
             db.session.add(chat_msg)
             db.session.commit()
+
+    # Mark incoming messages as read
+    target_role = 'provider' if current_user.role == 'customer' else 'customer'
+    unread_messages = Chat.query.filter_by(
+        provider_id=provider_id, 
+        customer_id=customer_id, 
+        sender_role=target_role, 
+        is_read=False
+    ).all()
+    
+    if unread_messages:
+        for m in unread_messages:
+            m.is_read = True
+        db.session.commit()
 
     chats = Chat.query.filter_by(provider_id=provider_id, customer_id=customer_id).order_by(Chat.timestamp.asc()).all()
     return render_template('chat.html', chats=chats, provider_id=provider_id, customer_id=customer_id, partner_name=partner_name)
