@@ -7,3 +7,6 @@ Werkzeug
 stripe
 python-dotenv
 flask-migrate
+pyotp
+qrcode
+

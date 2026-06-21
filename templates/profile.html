@@ -32,6 +32,28 @@
 
             <button type="submit" class="btn btn-primary">Update Profile</button>
         </form>
+        
+        <hr class="my-4">
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Two-Factor Authentication</h5>
+                {% if user.two_factor_enabled %}
+                    <p class="text-success mb-0 fw-bold">2FA is currently enabled.</p>
+                {% else %}
+                    <p class="text-muted mb-0">Add an extra layer of security to your account.</p>
+                {% endif %}
+            </div>
+            <div>
+                {% if user.two_factor_enabled %}
+                    <form action="{{ url_for('disable_2fa') }}" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to disable 2FA?');">Disable 2FA</button>
+                    </form>
+                {% else %}
+                    <a href="{{ url_for('setup_2fa') }}" class="btn btn-success">Enable 2FA</a>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
