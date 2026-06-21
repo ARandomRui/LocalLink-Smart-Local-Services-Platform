@@ -2,14 +2,7 @@
 
 {% block content %}
   <h2 class="mb-4">Available Services</h2>
-  <script id="services-data" type="application/json">
-    {
-      {
-        services | tojson | safe
-      }
-    }
-  </script>
-  <div id="map" style="height: 400px; width: 100%; margin-top: 20px;"></div>
+
   <div class="row">
     {% if services %}
       {% for service in services %}
@@ -22,7 +15,7 @@
                 <strong>Price:</strong> ₹{{ service.price }}
               </p>
               <p class="text-muted">
-                <strong>Location:</strong> {{ service.location }}
+                <strong>Location:</strong> <a href="https://www.google.com/maps/search/?api=1&query={{ service.location | urlencode }}" target="_blank" class="text-decoration-none">{{ service.location }}</a>
               </p>
 
               <p>
@@ -69,7 +62,7 @@
                 <strong>Price:</strong> ₹{{ service.price }}
               </p>
               <p class="text-muted">
-                <strong>Location:</strong> {{ service.location }}
+                <strong>Location:</strong> <a href="https://www.google.com/maps/search/?api=1&query={{ service.location | urlencode }}" target="_blank" class="text-decoration-none">{{ service.location }}</a>
               </p>
 
               {% if current_user.is_authenticated and current_user.role == 'customer' %}

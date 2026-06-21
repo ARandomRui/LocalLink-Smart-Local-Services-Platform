@@ -58,33 +58,4 @@
   </tbody>
 </table>
 
-<script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-<script>
-  const customerId = {{ current_user.id }};
-  const bookingRooms = [
-      {% for b in notifications %}
-          { providerId: {{ b.provider_id }}, customerId: {{ b.customer_id }}, bookingId: {{ b.id if b.id else 'null' }} },
-      {% endfor %}
-  ];
-  const navBadge = document.getElementById('nav-notif-badge');
-  let navCount = 0;
-  const socket = io();
-
-  socket.on('connect', () => {
-      bookingRooms.forEach(({ providerId, customerId, bookingId }) => {
-          if (providerId && customerId) {
-              const room = `chat_${Math.min(providerId, customerId)}_${Math.max(providerId, customerId)}_${bookingId}`;
-              socket.emit('join', { room, provider_id: providerId, customer_id: customerId, booking_id: bookingId });
-          }
-      });
-  });
-
-  socket.on('message_notification', (data) => {
-      if (data.customer_id === customerId && data.sender_role === 'provider') {
-          navCount += 1;
-          navBadge.textContent = navCount;
-          navBadge.classList.remove('d-none');
-      }
-  });
-</script>
 {% endblock %}

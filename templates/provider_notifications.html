@@ -26,13 +26,15 @@
                 </span>
             </td>
             <td>
-                {% if b.status == 'Pending' %}
-                    <a href="{{ url_for('update_booking_status', booking_id=b.id, action='accept') }}" class="btn btn-success btn-sm">Accept</a>
-                    <a href="{{ url_for('update_booking_status', booking_id=b.id, action='reject') }}" class="btn btn-danger btn-sm">Reject</a>
-                {% endif %}
-                {% if b.customer_id %}
-                    <a href="{{ url_for('chat', provider_id=b.provider_id, customer_id=b.customer_id) }}" class="btn btn-secondary btn-sm mt-2">Chat</a>
-                {% endif %}
+                <div class="d-flex gap-2">
+                    {% if b.status == 'Pending' %}
+                        <a href="{{ url_for('update_booking_status', booking_id=b.id, action='accept') }}" class="btn btn-success btn-sm">Accept</a>
+                        <a href="{{ url_for('update_booking_status', booking_id=b.id, action='reject') }}" class="btn btn-danger btn-sm">Reject</a>
+                    {% endif %}
+                    {% if b.customer_id %}
+                        <a href="{{ url_for('chat', provider_id=b.provider_id, customer_id=b.customer_id) }}" class="btn btn-secondary btn-sm">Chat</a>
+                    {% endif %}
+                </div>
             </td>
         </tr>
         {% endfor %}

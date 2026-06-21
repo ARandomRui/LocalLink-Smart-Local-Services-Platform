@@ -16,8 +16,27 @@
     </div>
     <div class="mb-3">
         <label>Location</label>
-        <input type="text" name="location" class="form-control" required>
+        <input type="text" name="location" id="service-location" class="form-control" required>
     </div>
     <button type="submit" class="btn btn-primary">Create Service</button>
 </form>
+
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places" async defer></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Initialize Google Autocomplete for the location input
+        const locationInput = document.getElementById('service-location');
+        if (locationInput) {
+            // We use setTimeout to ensure the Google Maps script has loaded
+            const initAutocomplete = () => {
+                if (window.google && window.google.maps && window.google.maps.places) {
+                    new google.maps.places.Autocomplete(locationInput);
+                } else {
+                    setTimeout(initAutocomplete, 100);
+                }
+            };
+            initAutocomplete();
+        }
+    });
+</script>
 {% endblock %}

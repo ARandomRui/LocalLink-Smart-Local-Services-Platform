@@ -15,6 +15,7 @@ from datetime import datetime
 import os
 from sqlalchemy.sql import func  # For database aggregation functions 
 import requests  # For making HTTP requests to external APIs (e.g., geocoding)
+import urllib.parse
 import pyotp
 import qrcode
 from io import BytesIO
@@ -78,12 +79,9 @@ class Service(db.Model):
     location = db.Column(db.String(100), nullable=False)  # Service location
     is_available = db.Column(db.Boolean, default=True)  # Availability status
     
-    # Geocoding fields for map integration 
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
 
     # Relationship: Link to provider User object
-    provider = db.relationship('User', backref='services')
+    provider = db.relationship('User', backref=db.backref('services', cascade='all, delete-orphan'))
 
     @property
     def avg_rating(self):
@@ -117,9 +115,9 @@ class Booking(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # Booking creation time
 
     # ✅ Relationships
-    service = db.relationship('Service', backref='bookings', lazy=True)
-    customer = db.relationship('User', foreign_keys=[customer_id], backref='customer_bookings', lazy=True)
-    provider = db.relationship('User', foreign_keys=[provider_id], backref='provider_bookings', lazy=True)
+    service = db.relationship('Service', backref=db.backref('bookings', cascade='all, delete-orphan'), lazy=True)
+    customer = db.relationship('User', foreign_keys=[customer_id], backref=db.backref('customer_bookings', cascade='all, delete-orphan'), lazy=True)
+    provider = db.relationship('User', foreign_keys=[provider_id], backref=db.backref('provider_bookings', cascade='all, delete-orphan'), lazy=True)
 
 
 
@@ -131,7 +129,7 @@ class Complaint(db.Model):
     status = db.Column(db.String(50), default="Pending")  # Status: Pending/Resolved
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # When complaint was filed
 
-    user = db.relationship("User", backref="complaints")
+    user = db.relationship("User", backref=db.backref("complaints", cascade='all, delete-orphan'))
 
 
 class Chat(db.Model):
@@ -143,26 +141,11 @@ class Chat(db.Model):
     sender_role = db.Column(db.String(20))  # Sender type: 'customer' or 'provider'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # When message was sent
     
-def geocode_address(address):
-    """Return (lat, lng) tuple for a given address, or (None, None) if failed."""
-    if not address:
-        return None, None
-    params = {
-        'address': address,
-        'key': GOOGLE_MAPS_API_KEY
-    }
-    try:
-        response = requests.get('https://maps.googleapis.com/maps/api/geocode/json', params=params)
-        data = response.json()
-        if data['status'] == 'OK':
-            location = data['results'][0]['geometry']['location']
-            return location['lat'], location['lng']
-        else:
-            print(f"Geocoding error: {data['status']}")
-            return None, None
-    except Exception as e:
-        print(f"Geocoding exception: {e}")
-        return None, None
+    # ✅ Relationships
+    customer = db.relationship('User', foreign_keys=[customer_id], backref=db.backref('customer_chats', cascade='all, delete-orphan'))
+    provider = db.relationship('User', foreign_keys=[provider_id], backref=db.backref('provider_chats', cascade='all, delete-orphan'))
+    
+
     
 @app.context_processor
 def inject_google_maps_key():
@@ -233,16 +216,12 @@ def create_service():
         price = float(request.form['price'])
         location = request.form['location']
 
-        lat, lng = geocode_address(location)  # <-- new
-
         new_service = Service(
             provider_id=current_user.id,
             name=name,
             description=description,
             price=price,
-            location=location,
-            latitude=lat,
-            longitude=lng
+            location=location
         )
         db.session.add(new_service)
         db.session.commit()
@@ -405,7 +384,12 @@ def handle_join(data):
         emit('status', {'msg': 'Please log in to join the chat.'})
         return
     join_room(room)
-    emit('status', {'msg': f'{current_user.username} joined the chat.'}, room=room)
+    # emit('status', {'msg': f'{current_user.username} joined the chat.'}, room=room)
+
+@socketio.on('join_global')
+def handle_join_global():
+    if current_user.is_authenticated:
+        join_room(f"user_{current_user.id}")
 
 @socketio.on('send_message')
 def handle_send_message(data):
@@ -458,6 +442,9 @@ def handle_send_message(data):
         'customer_id': customer_id,
         'timestamp': datetime.utcnow().strftime('%H:%M')
     }, room=room)
+
+    target_user_id = customer_id if current_user.role == 'provider' else provider_id
+    emit('global_notification', {'has_new_message': True}, room=f"user_{target_user_id}")
 
 @app.route('/provider/chats')
 @login_required
@@ -533,9 +520,30 @@ def book(service_id):
         )
         db.session.add(booking)
         db.session.commit()
+
+        # Auto-send a chat message with booking details
+        map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(booking.address)}"
+        auto_msg = (
+            f"Hello, I have requested to book '{service.name}'.\n"
+            f"Date: {booking.date}\n"
+            f"Time: {booking.time}\n"
+            f"Location: [{booking.address}]({map_url})\n"
+            f"Payment Method: {booking.payment_method}"
+        )
+        chat_msg = Chat(
+            customer_id=current_user.id,
+            provider_id=provider_id,
+            message=auto_msg,
+            sender_role='customer'
+        )
+        db.session.add(chat_msg)
+        db.session.commit()
+        
+        # Send live global notification to the provider
+        socketio.emit('global_notification', {'has_new_message': True}, room=f"user_{provider_id}")
+
         flash("Booking request sent to provider!", "success")
         return redirect(url_for('customer_notifications'))
-
     return render_template('booking_form.html', service=service)
 
 

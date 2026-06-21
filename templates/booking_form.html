@@ -21,7 +21,7 @@
     </div>
     <div class="mb-3">
         <label class="form-label">Address</label>
-        <textarea name="address" class="form-control" rows="2" required></textarea>
+        <input type="text" name="address" id="booking-address" class="form-control" required>
     </div>
     <div class="mb-3">
         <label class="form-label">Booking Date</label>
@@ -40,4 +40,21 @@
     </div>
     <button type="submit" class="btn btn-primary">Submit Booking</button>
 </form>
+
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places" async defer></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const addressInput = document.getElementById('booking-address');
+        if (addressInput) {
+            const initAutocomplete = () => {
+                if (window.google && window.google.maps && window.google.maps.places) {
+                    new google.maps.places.Autocomplete(addressInput);
+                } else {
+                    setTimeout(initAutocomplete, 100);
+                }
+            };
+            initAutocomplete();
+        }
+    });
+</script>
 {% endblock %}

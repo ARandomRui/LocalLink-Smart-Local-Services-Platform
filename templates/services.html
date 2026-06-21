@@ -22,7 +22,7 @@
                 <h5 class="card-title">{{ s.name }}</h5>
                 <p class="card-text">{{ s.description }}</p>
                 <p><strong>Price:</strong> ₹{{ s.price }}</p>
-                <p><strong>Location:</strong> {{ s.location }}</p>
+                <p><strong>Location:</strong> <a href="https://www.google.com/maps/search/?api=1&query={{ s.location | urlencode }}" target="_blank" class="text-decoration-none">{{ s.location }}</a></p>
 
                 <p>
                 Rating:
