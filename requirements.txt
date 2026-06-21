@@ -5,4 +5,5 @@ Flask-Mail
 Flask-SocketIO
 Werkzeug
 stripe
-
+python-dotenv
+flask-migrate

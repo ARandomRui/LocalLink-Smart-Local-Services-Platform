@@ -12,11 +12,17 @@ from flask_socketio import SocketIO, join_room, emit
 from datetime import datetime
 import os
 from sqlalchemy.sql import func  # For database aggregation functions 
+import requests  # For making HTTP requests to external APIs (e.g., geocoding)
 
 import stripe  # Stripe payment processing library
 
 # [Maintenance 3: Code Comment] Initialize Stripe with test key
 stripe.api_key = 'sk_test_51ThrDP3norPnKy7yGWQReMEmhQOQjXU7Wpjk2aCgn27CEy2StpnmzbS3Ua555AVe6bEtteborTlI2yNQg1g0r5jU00QVctriy0'
+
+# [Maintenance 2: Code Comment] Environment variable for google maps api key
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')  
 
 # ==================== FLASK APPLICATION SETUP ====================
 # Initialize Flask app with configuration
@@ -38,6 +44,10 @@ login_manager.init_app(app)
 # Real-time messaging server
 socketio = SocketIO(app, cors_allowed_origins='*')
 
+# database migration libraries
+from flask_migrate import Migrate
+migrate = Migrate(app, db)
+
 # -------------------- Database Models --------------------
 
 class User(UserMixin, db.Model):
@@ -56,6 +66,10 @@ class Service(db.Model):
     price = db.Column(db.Float, nullable=False)  # Service price
     location = db.Column(db.String(100), nullable=False)  # Service location
     is_available = db.Column(db.Boolean, default=True)  # Availability status
+    
+    # Geocoding fields for map integration 
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
 
     # Relationship: Link to provider User object
     provider = db.relationship('User', backref='services')
@@ -117,6 +131,31 @@ class Chat(db.Model):
     message = db.Column(db.Text, nullable=False)  # Chat message content
     sender_role = db.Column(db.String(20))  # Sender type: 'customer' or 'provider'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # When message was sent
+    
+def geocode_address(address):
+    """Return (lat, lng) tuple for a given address, or (None, None) if failed."""
+    if not address:
+        return None, None
+    params = {
+        'address': address,
+        'key': GOOGLE_MAPS_API_KEY
+    }
+    try:
+        response = requests.get('https://maps.googleapis.com/maps/api/geocode/json', params=params)
+        data = response.json()
+        if data['status'] == 'OK':
+            location = data['results'][0]['geometry']['location']
+            return location['lat'], location['lng']
+        else:
+            print(f"Geocoding error: {data['status']}")
+            return None, None
+    except Exception as e:
+        print(f"Geocoding exception: {e}")
+        return None, None
+    
+@app.context_processor
+def inject_google_maps_key():
+    return dict(google_maps_api_key=GOOGLE_MAPS_API_KEY)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -248,15 +287,22 @@ def create_service():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        # Get service details from form
         name = request.form['name']
         description = request.form['description']
         price = float(request.form['price'])
         location = request.form['location']
 
-        # Create and save new service
-        new_service = Service(provider_id=current_user.id, name=name,
-                              description=description, price=price, location=location)
+        lat, lng = geocode_address(location)  # <-- new
+
+        new_service = Service(
+            provider_id=current_user.id,
+            name=name,
+            description=description,
+            price=price,
+            location=location,
+            latitude=lat,
+            longitude=lng
+        )
         db.session.add(new_service)
         db.session.commit()
         flash('Service created successfully!', 'success')
