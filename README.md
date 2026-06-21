@@ -151,9 +151,6 @@ Password: admin123
 ---
 
 ## 🎯 Future Enhancements
-- ✅ Payment Gateway Integration  
-- ✅ Real-time Chat using WebSockets  
-- ✅ Push Notifications  
 - ✅ Advanced Search & Filtering  
 
 ---
@@ -170,5 +167,5 @@ Feel free to fork this repository and submit a pull request.
 ---
 
 ## ✨ Author
-Developed by **Vaibhav Rawat**  
+Developed by **Vaibhav Rawat**, Further Maintained by **Eu Jian Jie**, **Chee Rui**, **Ng Weng Hin** and **Lai Zi Xuan**   
 For learning and academic purposes.
